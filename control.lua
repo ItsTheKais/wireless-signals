@@ -50,7 +50,9 @@ local function deduceSignalValue(entity, signal, condNum)
     local v=0
     condNum=condNum or 1
     local condition=entity.get_circuit_condition(condNum)
+    condition.condition.first_signal.name=signal
     -- BEGIN MODIFICATION (check "_ = 0" first)
+    condition.condition.first_signal.type="virtual"
     local c = condition.condition.count
     condition.condition.count = 0
     condition.condition.comparator="="
@@ -60,8 +62,6 @@ local function deduceSignalValue(entity, signal, condNum)
     end
     condition.condition.count = c
     -- END MODIFICATION
-    condition.condition.first_signal.name=signal
-    condition.condition.first_signal.type="virtual" -- MODIFICATION (I don't know why I need this, but I do?)
     condition.condition.comparator="<"
     while t~=1 do
         condition.condition.constant=v
