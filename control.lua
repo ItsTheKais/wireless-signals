@@ -141,15 +141,15 @@ local function onTick(event)
                             end
                         end
                     end
-                elseif v.position ~= nil then -- workaround for game incorrectly thinking devices are invalid on load
-                    rtest = game.surfaces["nauvis"].find_entity("ws-radio-transmitter", v.position)
+                end
+            elseif v.position ~= nil then -- workaround for game incorrectly thinking devices are invalid on load
+                rtest = game.surfaces["nauvis"].find_entity("ws-radio-transmitter", v.position)
+                if rtest and rtest.valid then
+                    v.transmitter = rtest
+                else
+                    rtest = game.surfaces["nauvis"].find_entity("ws-radio-transmitter-2", v.position)
                     if rtest and rtest.valid then
                         v.transmitter = rtest
-                    else
-                        rtest = game.surfaces["nauvis"].find_entity("ws-radio-transmitter", v.position)
-                        if rtest and rtest.valid then
-                            v.transmitter = rtest
-                        end
                     end
                 end
             end
@@ -169,7 +169,7 @@ local function onTick(event)
                 else
                     v.reciever.set_circuit_condition(1, broadcastTable())
                 end
-            elseif v.position ~= nil then -- workaround for game thinking all recievers are invalid on load
+            elseif v.position ~= nil then
                 rtest = game.surfaces["nauvis"].find_entity("ws-radio-reciever", v.position)
                 if rtest and rtest.valid then
                     v.reciever = rtest
