@@ -1,5 +1,5 @@
 Wireless Signals
-v-0.0.2
+v-0.0.3
 Author: ItsTheKais  ( kaiseryoshi@gmail.com )
 
 A Factorio mod about using radios for fun and profit.
