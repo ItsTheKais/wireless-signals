@@ -22,12 +22,12 @@ data:extend(
 	},
 	{
 		type = "item",
-		name = "ws-radio-reciever",
-		icon = "__wireless-signals__/resources/icons/radio-reciever.png",
+		name = "ws-radio-receiver",
+		icon = "__wireless-signals__/resources/icons/radio-receiver.png",
 		flags = {"goes-to-quickbar"},
 		subgroup = "circuit-network",
-		order = "c[radio]-d[reciever]",
-		place_result = "ws-radio-reciever",
+		order = "c[radio]-d[receiver]",
+		place_result = "ws-radio-receiver",
 		stack_size = 10,
 	},
 }

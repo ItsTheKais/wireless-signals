@@ -1,10 +1,11 @@
 {
   "name": "wireless-signals",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "title": "Wireless Signals",
   "author": "Kais",
   "contact": "",
   "homepage": "",
   "description": "Adds radio equipment that can transmit circuit network signals over long distances.",
-  "dependencies": ["base >= 0.12.11"]
+  "factorio_version": "0.13",
+  "dependencies": ["base >= 0.13.0"]
 }

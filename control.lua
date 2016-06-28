@@ -1,12 +1,8 @@
-require "defines"
 require "util"
-require "config"
 
-local mod_version = "0.0.3"
+local mod_version = "0.1.0"
 
-local refresh_rate = math.floor(60 / math.min(math.max(signal_refresh_rate, 1), 60))
-
-local broadcast_signals = -- these are all the signals a reciever can use
+local broadcast_signals = -- these are all the signals a receiver can use
 {
     "signal-0",
     "signal-1",
@@ -18,16 +14,21 @@ local broadcast_signals = -- these are all the signals a reciever can use
     "signal-7",
     "signal-8",
     "signal-9",
-    "signal-A",
-    "signal-B",
-    "signal-C",
-    "signal-D",
-    "signal-E",
-    "signal-F",
-    "signal-blue",
+    "signal-red",
     "signal-green",
+    "signal-blue",
     "signal-yellow",
-    "signal-red"
+    "signal-pink",
+    "signal-cyan",
+    "signal-black",
+    "signal-grey",
+    "signal-white"
+}
+
+local wire_colors = 
+{
+    defines.wire_type.red,
+    defines.wire_type.green
 }
 
 local function broadcastTable()
@@ -42,44 +43,6 @@ local function broadcastTable()
         }
     end
     return table
-end
-
-local function deduceSignalValue(entity, signal, condNum)
--- courtesy of GopherATL
-    local t=2^31
-    local v=0
-    condNum=condNum or 1
-    local condition=entity.get_circuit_condition(condNum)
-    condition.condition.first_signal.name=signal
-    -- BEGIN MODIFICATION (check "_ = 0" first)
-    condition.condition.first_signal.type="virtual"
-    local c = condition.condition.count
-    condition.condition.count = 0
-    condition.condition.comparator="="
-    entity.set_circuit_condition(condNum,condition)
-    if entity.get_circuit_condition(condNum).fulfilled==true then
-        return 0
-    end
-    condition.condition.count = c
-    -- END MODIFICATION
-    condition.condition.comparator="<"
-    while t~=1 do
-        condition.condition.constant=v
-        entity.set_circuit_condition(condNum,condition)
-        t=t/2
-        if entity.get_circuit_condition(condNum).fulfilled==true then
-            v=v-t
-        else
-            v=v+t
-        end
-    end
-    condition.condition.constant=v
-    entity.set_circuit_condition(condNum,condition)
-    if entity.get_circuit_condition(condNum).fulfilled then
-        v=v-1
-    end
-    entity.set_circuit_condition(condNum, {condition={operator = ">", count = 0, first_signal={type = "virtual", name="signal-everything"}}}) -- MODIFICATION (reset the entity to an almost-always-true state)
-    return v
 end
 
 local function concatenateSignals(unsorted_signals)
@@ -97,11 +60,11 @@ local function concatenateSignals(unsorted_signals)
     return sorted_signals
 end
 
-local function findTransmittersInRange(reciever)
--- returns a list of transmitters that the reciever is in range of
+local function findTransmittersInRange(receiver)
+-- returns a list of transmitters that the receiver is in range of
     local in_range = {}
     for k, v in pairs(global.wireless_signals.transmitters) do
-        if v.transmitter.valid and math.sqrt((reciever.position.x - v.transmitter.position.x)^2 + (reciever.position.y - v.transmitter.position.y)^2) <= v.range then -- range is circular, not square
+        if v.transmitter.valid and math.sqrt((receiver.position.x - v.transmitter.position.x)^2 + (receiver.position.y - v.transmitter.position.y)^2) <= v.range then -- range is circular, not square
             table.insert(in_range, v)
         end
     end
@@ -110,70 +73,78 @@ end
 
 local function onInit()
     if not global.wireless_signals then
-        global.wireless_signals = {transmitters = {}, recievers = {}} -- set the new save up with empty global lists
+        global.wireless_signals = {transmitters = {}, receivers = {}} -- set the new save up with empty global lists
     end
 end
 
 local function onConfigChange(data)
     if data.mod_changes and data.mod_changes["wireless-signals"] then
         if not data.mod_changes["wireless-signals"].old_version then -- mod added to existing save
-            global.wireless_signals = {transmitters = {}, recievers = {}} -- set up empty global lists
+            global.wireless_signals = {transmitters = {}, receivers = {}} -- set up empty global lists
         end
     end
 end
 
+local function debugPrint(string)
+    local p = game.players[1]
+    p.print(string)
+end
+
 local function onTick(event)
-    if event.tick % refresh_rate == 0 then
-        for k, v in pairs(global.wireless_signals.transmitters) do -- update transmitters
-            if v.transmitter.valid then 
-                if v.transmitter.energy > 0 then -- transmitters only work when powered
-                    v.signals = {parameters = {}} -- check the circuit signals coming in
-                    local wire_connected, x = pcall(v.transmitter.get_circuit_condition, 1) -- DEVS PLS
-                    if wire_connected then
-                        for i = 1, #v.broadcasting do -- only check the signals the transmitter is able to broadcast
-                            local s = deduceSignalValue(v.transmitter, v.broadcasting[i], 1)
+    for k, v in pairs(global.wireless_signals.transmitters) do -- update transmitters
+        if v.transmitter.valid then 
+            if v.transmitter.energy > 0 then -- transmitters only work when powered
+                v.signals = {parameters = {}} -- this will record all the signals from both wire colors
+                for i = 1, #wire_colors do -- check both red and green wires
+                    local c = v.transmitter.get_circuit_network(wire_colors[i]) -- read the circuit network
+                    if c then
+                        for j = 1, #v.broadcasting do -- only check the signals the transmitter is able to broadcast
+                            local s = c.get_signal({type = "virtual", name=v.broadcasting[j]}) -- check that signal
                             if s > 0 then
-                                table.insert(v.signals.parameters, -- update the global signal table
+                                table.insert(v.signals.parameters, -- the signal is being sent in, so add it to the global signal table
                                 {
                                     count = s,
-                                    signal = {type = "virtual", name = v.broadcasting[i]},
+                                    signal = {type = "virtual", name = v.broadcasting[j]}
                                 })
                             end
                         end
                     end
-                elseif v.position ~= nil then -- workaround for game incorrectly thinking devices are invalid on load
-                    rtest = game.surfaces["nauvis"].find_entity("ws-radio-transmitter-1", v.position)
+                end
+            elseif v.position ~= nil then -- workaround for game incorrectly thinking devices are invalid on load
+                rtest = game.surfaces["nauvis"].find_entity("ws-radio-transmitter-1", v.position)
+                if rtest and rtest.valid then
+                    v.transmitter = rtest
+                    -- debugPrint("invalid transmitter 1 found")
+                else -- must do this for both types of transmitters
+                    rtest = game.surfaces["nauvis"].find_entity("ws-radio-transmitter-2", v.position)
                     if rtest and rtest.valid then
                         v.transmitter = rtest
-                    else -- must do this for both types of transmitters
-                        rtest = game.surfaces["nauvis"].find_entity("ws-radio-transmitter-2", v.position)
-                        if rtest and rtest.valid then
-                            v.transmitter = rtest
-                        end
+                        -- debugPrint("invalid transmitter 2 found")
                     end
                 end
             end
         end
-        for k, v in pairs(global.wireless_signals.recievers) do -- update recievers
-            if v.reciever.valid then
-                local unsorted_signals = {} 
-                local nearby_transmitters = findTransmittersInRange(v.reciever) -- find which transmitters are in range
-                for k1, v1 in pairs(nearby_transmitters) do -- get global signal tables from those transmitters
-                    if #v1.signals.parameters > 0 then -- that transmitter is broadcasting something
-                        table.insert(unsorted_signals, v1.signals)
-                    end
+     end
+     for k, v in pairs(global.wireless_signals.receivers) do -- update receivers
+        if v.receiver.valid then
+            local unsorted_signals = {} 
+            local nearby_transmitters = findTransmittersInRange(v.receiver) -- find which transmitters are in range
+            for k1, v1 in pairs(nearby_transmitters) do -- get global signal tables from those transmitters
+                if #v1.signals.parameters > 0 then -- that transmitter is broadcasting something
+                    table.insert(unsorted_signals, v1.signals)
                 end
-                if #unsorted_signals > 0 then
-                    local sorted_signals = concatenateSignals(unsorted_signals) -- merge any duplicates in the list of signals
-                    v.reciever.set_circuit_condition(1, sorted_signals) -- output the merged signals to circuit network
-                else
-                    v.reciever.set_circuit_condition(1, broadcastTable()) -- there are no incoming signals, so set the output to all zeros
-                end
-            elseif v.position ~= nil then -- workaround for game incorrectly thinking devices are invalid on load
-                rtest = game.surfaces["nauvis"].find_entity("ws-radio-reciever", v.position)
-                if rtest and rtest.valid then
-                    v.reciever = rtest
-                end
+            end
+            if #unsorted_signals > 0 then
+                local sorted_signals = concatenateSignals(unsorted_signals) -- merge any duplicates in the list of signals
+                v.receiver.get_control_behavior().parameters = sorted_signals -- output the merged signals to circuit network
+            else
+                v.receiver.get_control_behavior().parameters = nil -- there are no incoming signals, so zero out the output
+            end
+         elseif v.position ~= nil then -- workaround for game sometimes losing track of devices on load
+            rtest = game.surfaces["nauvis"].find_entity("ws-radio-receiver", v.position)
+            if rtest and rtest.valid then
+                v.receiver = rtest
+                -- debugPrint("invalid reciever found")
             end
         end
     end
@@ -183,22 +154,45 @@ local function onPlaceEntity(event)
     local entity = event.created_entity
     if entity.name == "ws-radio-transmitter-1" then
         entity.operable = false -- disable the UI
+        entity.get_or_create_control_behavior().connect_to_logistic_network = false -- keep it separate from the logistic network
+        entity.get_control_behavior().circuit_condition = -- set the circuit condition to an almost-always true outcome, so that it will always consume power
+        {
+            condition = {
+                comparator = ">",
+                first_signal = {type = "virtual", name = "signal-everything"},
+                constant = 0
+            }
+        }
         table.insert(global.wireless_signals.transmitters, -- add the transmitter to the global list
         {
             transmitter = entity,
             range = 600, -- how far the transmitter can broadcast
             broadcasting = -- the list of signals the transmitter can use
-            { -- (only abstract signals allowed - no items)
-                "signal-blue",
+            { -- (only abstract signals allowed - no items or fluids)
+                "signal-red",
                 "signal-green",
+                "signal-blue",
                 "signal-yellow",
-                "signal-red"
+                "signal-pink",
+                "signal-cyan",
+                "signal-black",
+                "signal-grey",
+                "signal-white"
             },
             signals = {parameters = {}}, -- the actual signals, will be dynamically updated in OnTick
             position = entity.position -- part of workaround for game thinking devices are invalid on load, may become unnecessary in the future??
         })
     elseif entity.name == "ws-radio-transmitter-2" then
         entity.operable = false
+        entity.get_or_create_control_behavior().connect_to_logistic_network = false
+        entity.get_control_behavior().circuit_condition =
+        {
+            condition = {
+                comparator = ">",
+                first_signal = {type = "virtual", name = "signal-everything"},
+                constant = 0
+            }
+        }
         table.insert(global.wireless_signals.transmitters, 
         {
             transmitter = entity,
@@ -207,11 +201,11 @@ local function onPlaceEntity(event)
             signals = {parameters = {}},
             position = entity.position
         })
-    elseif entity.name == "ws-radio-reciever" then
+    elseif entity.name == "ws-radio-receiver" then
         entity.operable = false
-        table.insert(global.wireless_signals.recievers, -- add the reciever to the global list
+        table.insert(global.wireless_signals.receivers, -- add the receiver to the global list
         {
-            reciever = entity,
+            receiver = entity,
             position = entity.position
         })
     end
@@ -226,10 +220,10 @@ local function onRemoveEntity(event) -- the removed device needs to be removed f
                 return
             end
         end
-    elseif entity.name == "ws-radio-reciever" then
-        for i = 1, #global.wireless_signals.recievers do
-            if entity == global.wireless_signals.recievers[i].reciever then
-                table.remove(global.wireless_signals.recievers, i)
+    elseif entity.name == "ws-radio-receiver" then
+        for i = 1, #global.wireless_signals.receivers do
+            if entity == global.wireless_signals.receivers[i].receiver then
+                table.remove(global.wireless_signals.receivers, i)
                 return
             end
         end

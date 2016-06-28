@@ -124,10 +124,10 @@ data:extend(
   },
     {
         type = "constant-combinator",
-        name = "ws-radio-reciever",
-        icon = "__wireless-signals__/resources/icons/radio-reciever.png",
+        name = "ws-radio-receiver",
+        icon = "__wireless-signals__/resources/icons/radio-receiver.png",
         flags = {"placeable-neutral", "player-creation"},
-        minable = {hardness = 0.2, mining_time = 0.75, result = "ws-radio-reciever"},
+        minable = {hardness = 0.2, mining_time = 0.75, result = "ws-radio-receiver"},
         max_health = 100,
         corpse = "medium-remnants",
         collision_box = {{-0.7, -0.7}, {0.7, 0.7}},
@@ -142,24 +142,133 @@ data:extend(
         --},
         --energy_usage_per_tick = "50kW",
         --apparently, constant combinators can't use electricity even if they want to
-        sprite = 
+        sprites = 
         {
-            filename = "__wireless-signals__/resources/entity/radio-reciever.png",
-            width = 203,
-            height = 179,
-            shift = {2.25, -1.91},
-        },
-        circuit_wire_connection_point =
-        {
-            shadow =
+            north = 
             {
-                red = {-0.09, 0.19},
-                green = {0.81, 0.47},
+                filename = "__wireless-signals__/resources/entity/radio-receiver.png",
+                width = 203,
+                height = 179,
+                frame_count = 1,
+                shift = {2.25, -1.91},
             },
-            wire =
+            east = 
             {
-                red = {-0.41, -0.19},
-                green = {0.37, 0.0},
+                filename = "__wireless-signals__/resources/entity/radio-receiver.png",
+                width = 203,
+                height = 179,
+                frame_count = 1,
+                shift = {2.25, -1.91},
+            },
+            south = 
+            {
+                filename = "__wireless-signals__/resources/entity/radio-receiver.png",
+                width = 203,
+                height = 179,
+                frame_count = 1,
+                shift = {2.25, -1.91},
+            },
+            west = 
+            {
+                filename = "__wireless-signals__/resources/entity/radio-receiver.png",
+                width = 203,
+                height = 179,
+                frame_count = 1,
+                shift = {2.25, -1.91},
+            }
+        },
+        activity_led_sprites =
+        {
+            north = 
+            {
+                filename = "__wireless-signals__/resources/blank.png",
+                width = 1,
+                height = 1,
+                frame_count = 1
+            },
+            east = 
+            {
+                filename = "__wireless-signals__/resources/blank.png",
+                width = 1,
+                height = 1,
+                frame_count = 1
+            },
+            south = 
+            {
+                filename = "__wireless-signals__/resources/blank.png",
+                width = 1,
+                height = 1,
+                frame_count = 1
+            },
+            west = 
+            {
+                filename = "__wireless-signals__/resources/blank.png",
+                width = 1,
+                height = 1,
+                frame_count = 1
+            }
+        },
+        activity_led_light =
+        {
+            intensity = 0,
+            size = 0
+        },
+        activity_led_light_offsets =
+        {
+            {0, 0},
+            {0, 0},
+            {0, 0},
+            {0, 0}
+        },
+        circuit_wire_connection_points =
+        {
+            {
+                shadow =
+                {
+                    red = {-0.09, 0.19},
+                    green = {0.81, 0.47},
+                },
+                wire =
+                {
+                    red = {-0.41, -0.19},
+                    green = {0.37, 0.0},
+                }
+            },
+            {
+                shadow =
+                {
+                    red = {-0.09, 0.19},
+                    green = {0.81, 0.47},
+                },
+                wire =
+                {
+                    red = {-0.41, -0.19},
+                    green = {0.37, 0.0},
+                }
+            },
+            {
+                shadow =
+                {
+                    red = {-0.09, 0.19},
+                    green = {0.81, 0.47},
+                },
+                wire =
+                {
+                    red = {-0.41, -0.19},
+                    green = {0.37, 0.0},
+                }
+            },
+            {
+                shadow =
+                {
+                    red = {-0.09, 0.19},
+                    green = {0.81, 0.47},
+                },
+                wire =
+                {
+                    red = {-0.41, -0.19},
+                    green = {0.37, 0.0},
+                }
             }
         },
         circuit_wire_max_distance = 7.5

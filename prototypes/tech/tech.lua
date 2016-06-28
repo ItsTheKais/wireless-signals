@@ -12,7 +12,7 @@ data:extend(
             },
             {
                 type = "unlock-recipe",
-                recipe = "ws-radio-reciever"
+                recipe = "ws-radio-receiver"
             },
         },
         prerequisites = {"circuit-network", "advanced-electronics-2"},

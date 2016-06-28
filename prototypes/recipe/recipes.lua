@@ -28,7 +28,7 @@ data:extend(
 	},
 	{
 		type = "recipe",
-		name = "ws-radio-reciever",
+		name = "ws-radio-receiver",
 		enabled = false,
 		ingredients = 
 		{
@@ -37,7 +37,7 @@ data:extend(
 			{"electronic-circuit", 10},
 			{"battery", 10},
 		},
-		result = "ws-radio-reciever"
+		result = "ws-radio-receiver"
 	}
 }
 )
