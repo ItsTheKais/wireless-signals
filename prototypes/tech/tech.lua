@@ -4,6 +4,7 @@ data:extend(
         type = "technology",
         name = "ws-telemetry",
         icon = "__wireless-signals__/resources/icons/telemetry.png",
+        icon_size = 128,
         effects = 
         {
             {
@@ -33,6 +34,7 @@ data:extend(
         type = "technology",
         name = "ws-telemetry-2",
         icon = "__wireless-signals__/resources/icons/telemetry.png",
+        icon_size = 128,
         effects = 
         {
             {
