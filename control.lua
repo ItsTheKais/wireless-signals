@@ -14,6 +14,32 @@ local broadcast_signals = -- these are all the signals a receiver can use
     "signal-7",
     "signal-8",
     "signal-9",
+    "signal-A",
+    "signal-B",
+    "signal-C",
+    "signal-D",
+    "signal-E",
+    "signal-F",
+    "signal-G",
+    "signal-H",
+    "signal-I",
+    "signal-J",
+    "signal-K",
+    "signal-L",
+    "signal-M",
+    "signal-N",
+    "signal-O",
+    "signal-P",
+    "signal-Q",
+    "signal-R",
+    "signal-S",
+    "signal-T",
+    "signal-U",
+    "signal-V",
+    "signal-W",
+    "signal-X",
+    "signal-Y",
+    "signal-Z",
     "signal-red",
     "signal-green",
     "signal-blue",
@@ -60,11 +86,11 @@ local function concatenateSignals(unsorted_signals)
     return sorted_signals
 end
 
-local function findTransmittersInRange(receiver)
--- returns a list of transmitters that the receiver is in range of
+local function findSourcesInRange(listener)
+-- returns a list of transmitters or repeaters that the receiver or repeater is in range of
     local in_range = {}
     for k, v in pairs(global.wireless_signals.transmitters) do
-        if v.transmitter.valid and math.sqrt((receiver.position.x - v.transmitter.position.x)^2 + (receiver.position.y - v.transmitter.position.y)^2) <= v.range then -- range is circular, not square
+        if v.transmitter.valid and math.sqrt((listener.position.x - v.transmitter.position.x)^2 + (listener.position.y - v.transmitter.position.y)^2) <= v.range then -- range is circular, not square
             table.insert(in_range, v)
         end
     end
@@ -73,14 +99,14 @@ end
 
 local function onInit()
     if not global.wireless_signals then
-        global.wireless_signals = {transmitters = {}, receivers = {}} -- set the new save up with empty global lists
+        global.wireless_signals = {transmitters = {}, receivers = {}, repeaters = {}} -- set the new save up with empty global lists
     end
 end
 
 local function onConfigChange(data)
     if data.mod_changes and data.mod_changes["wireless-signals"] then
         if not data.mod_changes["wireless-signals"].old_version then -- mod added to existing save
-            global.wireless_signals = {transmitters = {}, receivers = {}} -- set up empty global lists
+            global.wireless_signals = {transmitters = {}, receivers = {}, repeaters = {}} -- set up empty global lists
         end
     end
 end
@@ -128,7 +154,7 @@ local function onTick(event)
      for k, v in pairs(global.wireless_signals.receivers) do -- update receivers
         if v.receiver.valid then
             local unsorted_signals = {} 
-            local nearby_transmitters = findTransmittersInRange(v.receiver) -- find which transmitters are in range
+            local nearby_transmitters = findSourcesInRange(v.receiver) -- find which transmitters are in range
             for k1, v1 in pairs(nearby_transmitters) do -- get global signal tables from those transmitters
                 if #v1.signals.parameters > 0 then -- that transmitter is broadcasting something
                     table.insert(unsorted_signals, v1.signals)
@@ -169,6 +195,16 @@ local function onPlaceEntity(event)
             range = 600, -- how far the transmitter can broadcast
             broadcasting = -- the list of signals the transmitter can use
             { -- (only abstract signals allowed - no items or fluids)
+                "signal-0",
+                "signal-1",
+                "signal-2",
+                "signal-3",
+                "signal-4",
+                "signal-5",
+                "signal-6",
+                "signal-7",
+                "signal-8",
+                "signal-9",
                 "signal-red",
                 "signal-green",
                 "signal-blue",

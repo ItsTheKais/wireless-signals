@@ -133,7 +133,7 @@ data:extend(
         collision_box = {{-0.7, -0.7}, {0.7, 0.7}},
         selection_box = {{-0.8, -0.8}, {0.8, 0.8}},
         fast_replaceable_group = "ws-radio-equipment",
-        item_slot_count = 20,
+        item_slot_count = 45,
         --energy_source =
         --{
             --type = "electric",
