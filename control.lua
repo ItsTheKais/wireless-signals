@@ -1,6 +1,6 @@
 require "util"
 
-local mod_version = "0.1.0"
+local mod_version = "0.1.3"
 
 local broadcast_signals = -- these are all the signals a receiver can use
 {
@@ -88,13 +88,37 @@ end
 
 local function findSourcesInRange(listener)
 -- returns a list of transmitters or repeaters that the receiver or repeater is in range of
+-- TODO: investigate performance of sqrt and table lookups
     local in_range = {}
     for k, v in pairs(global.wireless_signals.transmitters) do
         if v.transmitter.valid and math.sqrt((listener.position.x - v.transmitter.position.x)^2 + (listener.position.y - v.transmitter.position.y)^2) <= v.range then -- range is circular, not square
             table.insert(in_range, v)
         end
     end
+    for k, v in pairs(global.wireless_signals.repeaters) do
+        if v.repeater.valid and math.sqrt((listener.position.x - v.repeater.position.x)^2 + (listener.position.y - v.repeater.position.y)^2) <= v.range then -- range is circular, not square
+            table.insert(in_range, v)
+        end
+    end
     return in_range
+end
+
+local function isPowered(device)
+-- returns whether the transmitter or repeater is powered
+    if device.energy then return device.energy > 0 end
+    if device.transmitter then return device.transmitter.energy > 0 end
+    if device.repeater then return device.repeater.energy > 0 end
+    return false
+end
+
+local function checkForBrokenSignalPath(pos)
+-- returns whether there is not a powered transmitter or repeater at the given location
+    local devices = {"ws-radio-transmitter-1", "ws-radio-transmitter-2", "ws-radio-repeater"}
+    for i=1, #devices do
+        rtest = game.surfaces["nauvis"].find_entity(devices[i], pos)
+        if rtest and rtest.valid and isPowered(rtest) then return false end
+    end
+    return true
 end
 
 local function onInit()
@@ -117,46 +141,46 @@ local function debugPrint(string)
 end
 
 local function onTick(event)
+    -- TODO: investigate simplifying calculations/spreading them out over multiple ticks
     for k, v in pairs(global.wireless_signals.transmitters) do -- update transmitters
-        if v.transmitter.valid then 
-            if v.transmitter.energy > 0 then -- transmitters only work when powered
-                v.signals = {parameters = {}} -- this will record all the signals from both wire colors
-                for i = 1, #wire_colors do -- check both red and green wires
-                    local c = v.transmitter.get_circuit_network(wire_colors[i]) -- read the circuit network
-                    if c then
-                        for j = 1, #v.broadcasting do -- only check the signals the transmitter is able to broadcast
-                            local s = c.get_signal({type = "virtual", name=v.broadcasting[j]}) -- check that signal
-                            if s > 0 then
-                                table.insert(v.signals.parameters, -- the signal is being sent in, so add it to the global signal table
-                                {
-                                    count = s,
-                                    signal = {type = "virtual", name = v.broadcasting[j]}
-                                })
-                            end
+        if v.transmitter.valid and isPowered(v) then -- transmitters only work when powered
+            v.signals = {parameters = {}} -- this will record all the signals from both wire colors
+            -- TODO: switch to get_merged_signals()
+            for i = 1, #wire_colors do -- check both red and green wires
+                local c = v.transmitter.get_circuit_network(wire_colors[i]) -- read the circuit network
+                if c then
+                    for j = 1, #v.broadcasting do -- only check the signals the transmitter is able to broadcast
+                        local s = c.get_signal({type = "virtual", name=v.broadcasting[j]}) -- check that signal
+                        if s > 0 then
+                            table.insert(v.signals.parameters, -- the signal is being sent in, so add it to the global signal table
+                            {
+                                count = s,
+                                signal = {type = "virtual", name = v.broadcasting[j]}
+                            })
                         end
                     end
                 end
-            elseif v.position ~= nil then -- workaround for game incorrectly thinking devices are invalid on load
-                rtest = game.surfaces["nauvis"].find_entity("ws-radio-transmitter-1", v.position)
+            end
+        elseif v.position ~= nil then -- workaround for game incorrectly thinking devices are invalid on load
+            rtest = game.surfaces["nauvis"].find_entity("ws-radio-transmitter-1", v.position)
+            if rtest and rtest.valid then
+                v.transmitter = rtest
+                -- debugPrint("invalid transmitter 1 found")
+            else -- must do this for both types of transmitters
+                rtest = game.surfaces["nauvis"].find_entity("ws-radio-transmitter-2", v.position)
                 if rtest and rtest.valid then
                     v.transmitter = rtest
-                    -- debugPrint("invalid transmitter 1 found")
-                else -- must do this for both types of transmitters
-                    rtest = game.surfaces["nauvis"].find_entity("ws-radio-transmitter-2", v.position)
-                    if rtest and rtest.valid then
-                        v.transmitter = rtest
-                        -- debugPrint("invalid transmitter 2 found")
-                    end
+                    -- debugPrint("invalid transmitter 2 found")
                 end
             end
         end
-     end
-     for k, v in pairs(global.wireless_signals.receivers) do -- update receivers
+    end
+    for k, v in pairs(global.wireless_signals.receivers) do -- update receivers
         if v.receiver.valid then
             local unsorted_signals = {} 
-            local nearby_transmitters = findSourcesInRange(v.receiver) -- find which transmitters are in range
-            for k1, v1 in pairs(nearby_transmitters) do -- get global signal tables from those transmitters
-                if #v1.signals.parameters > 0 then -- that transmitter is broadcasting something
+            local nearby_sources = findSourcesInRange(v.receiver) -- find which transmitters and repeaters are in range
+            for k1, v1 in pairs(nearby_sources) do -- get global signal tables from those devices
+                if isPowered(v1) and #v1.signals.parameters > 0 then -- that device is powered and broadcasting something
                     table.insert(unsorted_signals, v1.signals)
                 end
             end
@@ -174,6 +198,60 @@ local function onTick(event)
             end
         end
     end
+    for k, v in pairs(global.wireless_signals.repeaters) do -- update repeaters
+        if v.repeater.valid and isPowered(v) then -- repeaters only work when powered
+            local signals_to_repeat = {} -- other repeaters will read this list to determine which signals to pick up
+            local nearby_sources = findSourcesInRange(v.repeater)
+            for k1, v1 in pairs(nearby_sources) do
+                if v1.transmitter and #v1.signals.parameters > 0 then
+                    table.insert(signals_to_repeat, { -- just add the transmitter's signals
+                        parameters = v1.signals.parameters, -- repeated signals must keep track of which devices they have passed through,
+                        passed_devices = {v1.position, v.position}  -- so that we don't repeat the same signals back and forth
+                    })
+                elseif v1.repeater and v.repeater ~= v1.repeater and #v1.repeating_signals > 0 then -- ignore this repeater
+                    for k2, v2 in pairs(v1.repeating_signals) do
+                        local signal_repeaters = v2.passed_devices
+                        local signal_invalid = false
+                        for k3, v3 in pairs(signal_repeaters) do
+                            if v.position == v3 or checkForBrokenSignalPath(v3) then
+                                signal_invalid = true -- either this signal has been through this repeater before, or
+                                break -- a device that was broadcasting it has been removed or unpowered, so we ignore it
+                            end
+                        end
+                        if not signal_invalid then -- this signal has not been to this repeater before, so repeat it
+                            table.insert(signal_repeaters, v.position) -- record that this signal has been through this repeater
+                            table.insert(signals_to_repeat, {
+                                parameters = v2.parameters,
+                                passed_devices = signal_repeaters
+                            })
+                        end
+                    end
+                end
+            end
+            v.repeating_signals = signals_to_repeat -- write the repeating signals to the global table
+            local unsorted_signals = {} -- recievers need a different list, which contains a summary of all repeated signals
+            for k1, v1 in pairs(signals_to_repeat) do -- this is built the same way as it is for a receiver
+                if #v1.parameters > 0 then
+                    table.insert(unsorted_signals, {parameters = v1.parameters})
+                end
+            end
+            if #unsorted_signals > 0 then
+                local sorted_signals = concatenateSignals(unsorted_signals)
+                v.signals = sorted_signals -- write this list to the global table
+            end
+        elseif v.position ~= nil then -- you know the drill by now
+            rtest = game.surfaces["nauvis"].find_entity("ws-radio-repeater", v.position)
+            if rtest and rtest.valid then
+                v.repeater = rtest
+                -- debugPrint("invalid repeater found")
+            end
+        end
+    end
+    for k, v in pairs(global.wireless_signals.repeaters) do -- update repeaters' power
+        if v.repeater.valid then -- beacon-type entities do not consume power unless affecting some other entity
+            v.repeater.energy = 0 -- the repeater is unable to do that at all and thus normally never consumes any power
+        end -- we manually set all repeaters' power buffers to 0 each tick so that it will consume power to refill
+    end -- this must be done separately after the receiver/repeater logic, since that power is checked as part of it
 end
 
 local function onPlaceEntity(event)
@@ -244,10 +322,20 @@ local function onPlaceEntity(event)
             receiver = entity,
             position = entity.position
         })
+    elseif entity.name == "ws-radio-repeater" then
+        entity.operable = false
+        table.insert(global.wireless_signals.repeaters,
+        {
+            repeater = entity,
+            range = 1000,
+            repeating_signals = {}, -- list of signals sent to other repeaters, which includes a list of devices the signals have passed through
+            signals = {parameters = {}}, -- list of signals sent to recievers, identical to a transmitter's list
+            position = entity.position
+        })
     end
 end
 
-local function onRemoveEntity(event) -- the removed device needs to be removed from the global list(s)
+local function onRemoveEntity(event) -- the removed device needs to be removed from the global list
     local entity = event.entity
     if entity.name == "ws-radio-transmitter-1" or entity.name == "ws-radio-transmitter-2" then
         for i = 1, #global.wireless_signals.transmitters do
@@ -263,6 +351,13 @@ local function onRemoveEntity(event) -- the removed device needs to be removed f
                 return
             end
         end
+    elseif entity.name == "ws-radio-repeater" then
+        for i = 1, #global.wireless_signals.repeaters do
+            if entity == global.wireless_signals.repeaters[i].repeater then
+                table.remove(global.wireless_signals.repeaters, i)
+                return
+            end
+        end
     end
 end
 
@@ -273,7 +368,7 @@ script.on_configuration_changed(onConfigChange)
 script.on_event(defines.events.on_built_entity, onPlaceEntity)
 script.on_event(defines.events.on_robot_built_entity, onPlaceEntity)
 
-script.on_event(defines.events.on_preplayer_mined_item, onRemoveEntity)
+script.on_event(defines.events.on_pre_player_mined_item, onRemoveEntity)
 script.on_event(defines.events.on_robot_pre_mined, onRemoveEntity)
 script.on_event(defines.events.on_entity_died, onRemoveEntity)
 

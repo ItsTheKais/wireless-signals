@@ -14,7 +14,7 @@ data:extend(
             {
                 type = "unlock-recipe",
                 recipe = "ws-radio-receiver"
-            },
+            }
         },
         prerequisites = {"circuit-network", "advanced-electronics-2"},
         unit =
@@ -41,6 +41,10 @@ data:extend(
                 type = "unlock-recipe",
                 recipe = "ws-radio-transmitter-2"
             },
+            {
+                type = "unlock-recipe",
+                recipe = "ws-radio-repeater"
+            }
         },
         prerequisites = {"ws-telemetry", "effectivity-module-2"},
         unit =

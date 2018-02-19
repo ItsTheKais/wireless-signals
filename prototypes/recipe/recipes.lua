@@ -38,6 +38,19 @@ data:extend(
 			{"battery", 10},
 		},
 		result = "ws-radio-receiver"
+	},
+	{
+		type = "recipe",
+		name = "ws-radio-repeater",
+		enabled = false,
+		ingredients = 
+		{
+			{"steel-plate", 15},
+			{"iron-stick", 20},
+			{"processing-unit", 5},
+			{"battery", 20},
+		},
+		result = "ws-radio-repeater"
 	}
 }
 )
